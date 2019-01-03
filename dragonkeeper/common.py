@@ -41,6 +41,7 @@ RESPONSE_BASIC = \
     'HTTP/1.1 %s %s' + CRLF + \
     'Date: %s' + CRLF + \
     'Server: Dragonkeeper/%s' % __version__ + CRLF + \
+    'Access-Control-Allow-Origin: *' + CRLF + \
     '%s'
 
 # RESPONSE_OK_CONTENT % (timestamp, additional headers or empty, mime, content)

@@ -13,6 +13,7 @@ from common import __version__ as VERSION
 
 types_map[".manifest"] = "text/cache-manifest"
 types_map[".ico"] = "image/x-icon"
+types_map[".json"] = "application/json"
 
 class HTTPConnection(asyncore.dispatcher):
     """To provide a simple HTTP response handler.

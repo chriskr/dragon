@@ -63,6 +63,16 @@ RESPONSE_OK_CONTENT = RESPONSE_BASIC % (
     'Content-Length: %s' + 2 * CRLF + \
     '%s')
 
+RESPONSE_OK_CONTENT_GZIP = RESPONSE_BASIC % (
+    200,
+    'OK',
+    '%s',
+    '%s' + \
+    'Content-Type: %s' + CRLF + \
+    'Content-Length: %s' + CRLF + \
+    'Content-Encoding: gzip' + 2 * CRLF + \
+    '%s')
+
 # NOT_MODIFIED % ( timestamp )
 # HTTP/1.1 304 Not Modified
 # Date: %s

@@ -14,6 +14,8 @@ from common import __version__ as VERSION
 types_map[".manifest"] = "text/cache-manifest"
 types_map[".ico"] = "image/x-icon"
 types_map[".json"] = "application/json"
+types_map[".xml"] = "application/xhtml+xml"
+
 
 class HTTPConnection(asyncore.dispatcher):
     """To provide a simple HTTP response handler.
@@ -37,16 +39,15 @@ class HTTPConnection(asyncore.dispatcher):
         self.cgi_script = ""
         self.GET_handlers = context.http_get_handlers
 
-
     def read_headers(self):
         raw_parsed_headers = parse_headers(self.in_buffer)
         if raw_parsed_headers:
             # to dispatch any hanging timeout response
             self.flush()
             (headers_raw, first_line,
-                    self.headers, self.in_buffer) = raw_parsed_headers
+             self.headers, self.in_buffer) = raw_parsed_headers
             method, path, protocol = first_line.split(BLANK, 2)
-            #if path == "/app/":
+            # if path == "/app/":
             #    path = "/app/stp-1/client-en.xml"
             self.REQUEST_URI = path
             path = path.lstrip("/")
@@ -62,7 +63,7 @@ class HTTPConnection(asyncore.dispatcher):
             self.arguments = arguments
             self.system_path = system_path
             self.timeout = time() + TIMEOUT
-            #if not self.REQUEST_URI.endswith("services"):
+            # if not self.REQUEST_URI.endswith("services"):
             #    print self.REQUEST_URI
             if self.cgi_enabled:
                 self.check_is_cgi(system_path)
@@ -112,7 +113,8 @@ class HTTPConnection(asyncore.dispatcher):
         self.SCRIPT_NAME = ""
         self.PATH_INFO = ""
         if handler in system_path:
-            script_path = system_path[0:system_path.find(handler) + len(handler)]
+            script_path = system_path[0:system_path.find(
+                handler) + len(handler)]
             if isfile(script_path):
                 self.cgi_script = script_path
                 pos = self.REQUEST_URI.find(handler) + len(handler)
@@ -156,7 +158,7 @@ class HTTPConnection(asyncore.dispatcher):
         if self.PATH_INFO:
             environ["PATH_INFO"] = self.PATH_INFO
             environ["PATH_TRANSLATED"] = \
-                    cwd + self.PATH_INFO.replace("/", os.path.sep)
+                cwd + self.PATH_INFO.replace("/", os.path.sep)
         if "Content-Length" in self.headers:
             environ["CONTENT_LENGTH"] = self.headers["Content-Length"]
         if "Content-Type" in self.headers:
@@ -209,10 +211,10 @@ class HTTPConnection(asyncore.dispatcher):
                 raw_parsed_headers = parse_headers(CRLF + stdoutdata)
                 if raw_parsed_headers:
                     (headers_raw, first_line,
-                            headers, content) = raw_parsed_headers
+                     headers, content) = raw_parsed_headers
                     if 'Status' in headers:
                         response_code, response_token = \
-                                headers.pop('Status').split(' ', 1)
+                            headers.pop('Status').split(' ', 1)
                 else:
                     # assume its html
                     content = stdoutdata
@@ -274,10 +276,14 @@ class HTTPConnection(asyncore.dispatcher):
             ending = "." in path and path[path.rfind("."):] or "no-ending"
             mime = ending in types_map and types_map[ending] or 'text/plain'
             try:
+                response_template = RESPONSE_OK_CONTENT
+                if isfile(system_path + '.gz'):
+                    response_template = RESPONSE_OK_CONTENT_GZIP
+                    system_path += '.gz'
                 f = open(system_path, 'rb')
                 content = f.read()
                 f.close()
-                self.out_buffer += RESPONSE_OK_CONTENT % (
+                self.out_buffer += response_template % (
                     get_timestamp(),
                     'Last-Modified: %s%s' % (
                         get_timestamp(system_path),
@@ -301,17 +307,17 @@ class HTTPConnection(asyncore.dispatcher):
         else:
             try:
                 items_dir = [item for item in listdir(system_path)
-                                if isdir(path_join(system_path, item))]
+                             if isdir(path_join(system_path, item))]
                 items_file = [item for item in listdir(system_path)
-                                if isfile(path_join(system_path, item))]
+                              if isfile(path_join(system_path, item))]
                 items_dir.sort()
                 items_file.sort()
                 if path:
                     items_dir.insert(0, '..')
                 markup = [ITEM_DIR % (quote(item), item)
-                            for item in items_dir]
+                          for item in items_dir]
                 markup.extend([ITEM_FILE % (quote(item), item)
-                                    for item in items_file])
+                               for item in items_file])
                 content = DIR_VIEW % ("".join(markup))
             except Exception, msg:
                 content = DIR_VIEW % """<li style="color:#f30">%s</li>""" % msg
@@ -389,6 +395,7 @@ class HTTPConnection(asyncore.dispatcher):
     # ============================================================
     # Implementations of the asyncore.dispatcher class methods
     # ============================================================
+
     def handle_read(self):
         self.in_buffer += self.recv(BUFFERSIZE)
         self.check_input()

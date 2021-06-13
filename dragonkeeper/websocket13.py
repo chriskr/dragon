@@ -5,24 +5,25 @@ import hashlib
 import base64
 import struct
 from array import array
-from common import CRLF, BUFFERSIZE
+from .common import CRLF, BUFFERSIZE
 
-WS13_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+WS13_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 NOT_SET = -1
 INT16 = 2
 INT64 = 8
 BYTE = 1
 OPCODE_CLOSE = 8
-MSG_DOUBLE = "%s%%s%%s" % struct.pack("!BB", 0x81, 127)
-MSG_LONG = "%s%%s%%s" % struct.pack("!BB", 0x81, 126)
-MSG_SHORT = "%s%%s%%s" % struct.pack("!B", 0x81)
+MSG_DOUBLE = b"%s%%s%%s" % struct.pack("!BB", 0x81, 127)
+MSG_LONG = b"%s%%s%%s" % struct.pack("!BB", 0x81, 126)
+MSG_SHORT = b"%s%%s%%s" % struct.pack("!B", 0x81)
 
 
 # RESPONSE_UPGRADE_WEB_SOCKET % (key)
-RESPONSE_UPGRADE_WEB_SOCKET = CRLF.join(["HTTP/1.1 101 Switching Protocols",
-                                         "Upgrade: websocket",
-                                         "Connection: Upgrade",
-                                         "Sec-WebSocket-Accept: %s", CRLF])
+RESPONSE_UPGRADE_WEB_SOCKET = CRLF.join([b"HTTP/1.1 101 Switching Protocols",
+                                         b"Upgrade: websocket",
+                                         b"Connection: Upgrade",
+                                         b"Sec-WebSocket-Accept: %s", CRLF])
+
 
 class WebSocket13(asyncore.dispatcher):
 
@@ -31,16 +32,17 @@ class WebSocket13(asyncore.dispatcher):
     def __init__(self, socket, headers, buffer, path):
         asyncore.dispatcher.__init__(self, sock=socket)
         self._inbuffer = array("B", buffer)
-        self._outbuffer = ""
+        self._outbuffer = b""
         self._headers = headers
         self._path = path
         self._shake_hands()
 
     def _shake_hands(self):
         sha1 = hashlib.sha1()
-        sha1.update(self._headers.get("Sec-WebSocket-Key"))
+        sha1.update(self._headers.get(b"Sec-WebSocket-Key"))
         sha1.update(WS13_GUID)
         res_key = base64.b64encode(sha1.digest())
+        print('res key', res_key)
         self._outbuffer += RESPONSE_UPGRADE_WEB_SOCKET % res_key
         self._fin = NOT_SET
         self._rsv1 = NOT_SET
@@ -104,9 +106,10 @@ class WebSocket13(asyncore.dispatcher):
             buf = self._inbuffer
             cur = self._buf_cur
             mask = self._mask
-            r = xrange(self._data_length)
+            r = range(self._data_length)
             data = array("B", (buf[cur + i] ^ mask[i % 4] for i in r))
-            self.handle_message(data.tostring())
+            print('data', data)
+            self.handle_message(bytes(data))
             self._inbuffer = buf[cur + self._data_length:]
             self._buf_cur = 0
             self._fin = NOT_SET
@@ -120,11 +123,15 @@ class WebSocket13(asyncore.dispatcher):
         # only support for text so far
         msg_len = len(message)
         if msg_len > 0xffff:
-            self._outbuffer += MSG_DOUBLE % (struct.pack("!Q", msg_len), message)
+            self._outbuffer += MSG_DOUBLE % (struct.pack("!Q",
+                                             msg_len), message)
         elif msg_len > 125:
             self._outbuffer += MSG_LONG % (struct.pack("!H", msg_len), message)
         else:
-            self._outbuffer += MSG_SHORT % (struct.pack("!B", msg_len), message)
+            print('message', message)
+            print('struct', struct.pack("!B", msg_len))
+            self._outbuffer += MSG_SHORT % (struct.pack("!B",
+                                            msg_len), message)
         self.handle_write()
 
     def handle_message(self, message):
@@ -145,10 +152,12 @@ class WebSocket13(asyncore.dispatcher):
 
     def handle_write(self):
         sent = self.send(self._outbuffer)
-        if sent: self._outbuffer = self._outbuffer[sent:]
+        if sent:
+            self._outbuffer = self._outbuffer[sent:]
 
     def handle_close(self):
         self.close()
+
 
 class TestWebSocket13(WebSocket13):
 
@@ -156,8 +165,9 @@ class TestWebSocket13(WebSocket13):
         WebSocket13.__init__(self, socket, headers, buffer, path)
 
     def handle_message(self, message):
-        self.send_message("message received: %s" % message)
-        print "\r", message,
+        self.send_message(b"message received: %s" % message)
+        print("\r", message,)
+
 
 class TestWebSocket13HighLoad(WebSocket13):
 
@@ -165,8 +175,10 @@ class TestWebSocket13HighLoad(WebSocket13):
         WebSocket13.__init__(self, socket, headers, buffer, path)
 
     def writable(self):
-        self.send_message('["ecmascript-debugger",17,0,0,[14,1118563,0,"timeout"]]')
-        self.send_message('["ecmascript-debugger",18,0,0,[14,1118563,"completed"]]')
+        self.send_message(
+            '["ecmascript-debugger",17,0,0,[14,1118563,0,"timeout"]]')
+        self.send_message(
+            '["ecmascript-debugger",18,0,0,[14,1118563,"completed"]]')
         return bool(self._outbuffer)
 
     def handle_close(self):

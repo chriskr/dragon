@@ -3,15 +3,16 @@ import os
 import socket
 import argparse
 import asyncore
-from httpscopeinterface import HTTPScopeInterface
-from stpconnection import ScopeConnection
-from simpleserver import SimpleServer
-from upnpsimpledevice import SimpleUPnPDevice
+from .httpscopeinterface import HTTPScopeInterface
+from .stpconnection import ScopeConnection
+from .simpleserver import SimpleServer
+from .upnpsimpledevice import SimpleUPnPDevice
 
 if sys.platform == "win32":
     import msvcrt
     msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
     msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+
 
 def _get_IP():
     ip = None
@@ -30,6 +31,7 @@ def _get_IP():
             pass
     return ip
 
+
 def _parse_args():
     parser = argparse.ArgumentParser(description="""
                                      Developper tool for Opera Dragonfly.
@@ -46,11 +48,11 @@ def _parse_args():
     parser.add_argument("-f", "--format",
                         action="store_true",
                         default=False,
-                        help = "pretty print message flow")
+                        help="pretty print message flow")
     parser.add_argument("-j", "--format-payload",
                         action="store_true",
                         default=False,
-                        help = "pretty print the message payload. can be very expensive")
+                        help="pretty print the message payload. can be very expensive")
     parser.add_argument("-r", "--root",
                         default=".",
                         help="the root directory of the server (default: %(default)s))")
@@ -58,7 +60,7 @@ def _parse_args():
                         type=int,
                         default=7001,
                         dest="stp_port",
-                        help = "STP port (default: %(default)s))")
+                        help="STP port (default: %(default)s))")
     parser.add_argument("-s", "--server-port",
                         type=int,
                         default=8002,
@@ -74,7 +76,7 @@ def _parse_args():
                         action="store_true",
                         help="timing between sending commands and receiving rsponses")
     parser.add_argument("--force-stp-0",
-                        action = "store_true",
+                        action="store_true",
                         default=False,
                         help="force STP 0 protocol")
     parser.add_argument("--print-command-map",
@@ -83,7 +85,7 @@ def _parse_args():
                         dest="print_message_map",
                         help="print the command map")
     parser.add_argument("--print-command-map-services",
-                        dest = "print_message_map_services",
+                        dest="print_message_map_services",
                         default="",
                         help="""a comma separated list of services to print
                                 the command map (default: %(default)s))""")
@@ -122,21 +124,24 @@ def _parse_args():
     parser.set_defaults(ip=_get_IP(), http_get_handlers={})
     return parser.parse_args()
 
+
 def _run_proxy(args, count=None):
-    server = SimpleServer(args.host, args.server_port, HTTPScopeInterface, args)
+    server = SimpleServer(args.host, args.server_port,
+                          HTTPScopeInterface, args)
     args.SERVER_ADDR, args.SERVER_PORT = server.socket.getsockname()
     SimpleServer(args.host, args.stp_port, ScopeConnection, args)
-    print "server on: http://%s:%s/" % (args.SERVER_NAME, args.SERVER_PORT)
-    upnp_device = SimpleUPnPDevice(args.ip, args.server_port, args.stp_port)
-    upnp_device.notify_alive()
-    args.http_get_handlers["upnp_description"] = upnp_device.get_description
-    args.upnp_device = upnp_device
+    print("server on: http://%s:%s/" % (args.SERVER_NAME, args.SERVER_PORT))
+    # upnp_device = SimpleUPnPDevice(args.ip, args.server_port, args.stp_port)
+    # upnp_device.notify_alive()
+    # args.http_get_handlers["upnp_description"] = upnp_device.get_description
+    # args.upnp_device = upnp_device
     asyncore.loop(timeout=args.poll_timeout, count=count)
+
 
 def main_func():
     args = _parse_args()
     if not args.ip:
-        print "failed to get the IP of the machine"
+        print("failed to get the IP of the machine")
         return
     if not os.path.isdir(args.root):
         parser.error("""Root directory "%s" does not exist""" % args.root)
@@ -153,6 +158,7 @@ def main_func():
         for fd, obj in asyncore.socket_map.items():
             obj.close()
         sys.exit()
+
 
 if __name__ == "__main__":
     main_func()

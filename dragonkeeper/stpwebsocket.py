@@ -1,5 +1,5 @@
-import websocket13
-from utils import pretty_print
+from . import websocket13
+from .utils import pretty_print
 
 """
 stp-1 message format
@@ -24,6 +24,7 @@ TAG = 5
 PAYLOAD = 8
 STP_MSG = "[\"%s\",%s,%s,%s,%s]"
 
+
 class STPWebSocket(websocket13.WebSocket13):
 
     def __init__(self, socket, headers, buffer, path, context, stp_connection):
@@ -37,7 +38,8 @@ class STPWebSocket(websocket13.WebSocket13):
 
     # messages sent from scope
     def handle_scope_message(self, msg):
-        message = STP_MSG % (msg[SERVICE], msg[COMMAND], msg[STATUS], msg[TAG], msg[PAYLOAD])
+        message = STP_MSG % (msg[SERVICE], msg[COMMAND],
+                             msg[STATUS], msg[TAG], msg[PAYLOAD])
         if self.debug:
             pretty_print("send to client:",
                          msg,

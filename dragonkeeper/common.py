@@ -1,4 +1,4 @@
-__version__ = '0.8.3'
+__version__ = b'0.8.3'
 
 import socket
 import asyncore
@@ -15,20 +15,22 @@ from os.path import isfile, isdir
 from os.path import exists as path_exists
 from os.path import join as path_join
 from os.path import sep as OS_PATH_SEP
-from urllib import quote, unquote
+from urllib.parse import quote, unquote
 
-CRLF = '\r\n'
-BLANK = ' '
+CRLF = b'\r\n'
+BLANK = b' '
 BUFFERSIZE = 8192
-RE_HEADER = re.compile(": *")
-RE_HEADER_LINES = re.compile(CRLF + "(?![ \t])")
+RE_HEADER = re.compile(b": *")
+RE_HEADER_LINES = re.compile(CRLF + b"(?![ \t])")
 SOURCE_ROOT = os.path.dirname(os.path.abspath(__file__))
+
 
 def parse_headers(buffer):
     if 2*CRLF in buffer:
         headers_raw, buffer = buffer.split(2*CRLF, 1)
         first_line, headers = headers_raw.split(CRLF, 1)
-        headers = dict((RE_HEADER.split(line, 1) for line in RE_HEADER_LINES.split(headers)))
+        headers = dict((RE_HEADER.split(line, 1)
+                       for line in RE_HEADER_LINES.split(headers)))
         return (
             headers_raw + 2 * CRLF,
             first_line,
@@ -37,12 +39,13 @@ def parse_headers(buffer):
         )
     return None
 
+
 RESPONSE_BASIC = \
-    'HTTP/1.1 %s %s' + CRLF + \
-    'Date: %s' + CRLF + \
-    'Server: Dragonkeeper/%s' % __version__ + CRLF + \
-    'Access-Control-Allow-Origin: *' + CRLF + \
-    '%s'
+    b'HTTP/1.1 %s %s' + CRLF + \
+    b'Date: %s' + CRLF + \
+    b'Server: Dragonkeeper/%s' % __version__ + CRLF + \
+    b'Access-Control-Allow-Origin: *' + CRLF + \
+    b'%s'
 
 # RESPONSE_OK_CONTENT % (timestamp, additional headers or empty, mime, content)
 #
@@ -55,23 +58,23 @@ RESPONSE_BASIC = \
 # %s
 
 RESPONSE_OK_CONTENT = RESPONSE_BASIC % (
-    200,
-    'OK',
-    '%s',
-    '%s' + \
-    'Content-Type: %s' + CRLF + \
-    'Content-Length: %s' + 2 * CRLF + \
-    '%s')
+    b'200',
+    b'OK',
+    b'%s',
+    b'%s' +
+    b'Content-Type: %s' + CRLF +
+    b'Content-Length: %s' + 2 * CRLF +
+    b'%s')
 
 RESPONSE_OK_CONTENT_GZIP = RESPONSE_BASIC % (
-    200,
-    'OK',
-    '%s',
-    '%s' + \
-    'Content-Type: %s' + CRLF + \
-    'Content-Length: %s' + CRLF + \
-    'Content-Encoding: gzip' + 2 * CRLF + \
-    '%s')
+    b'200',
+    b'OK',
+    b'%s',
+    b'%s' +
+    b'Content-Type: %s' + CRLF +
+    b'Content-Length: %s' + CRLF +
+    b'Content-Encoding: gzip' + 2 * CRLF +
+    b'%s')
 
 # NOT_MODIFIED % ( timestamp )
 # HTTP/1.1 304 Not Modified
@@ -79,9 +82,9 @@ RESPONSE_OK_CONTENT_GZIP = RESPONSE_BASIC % (
 # Server: Dragonkeeper/0.8
 
 NOT_MODIFIED = RESPONSE_BASIC % (
-    304,
-    'Not Modified',
-    '%s',
+    b'304',
+    b'Not Modified',
+    b'%s',
     CRLF,
 )
 
@@ -92,10 +95,10 @@ NOT_MODIFIED = RESPONSE_BASIC % (
 # Location: %s
 
 REDIRECT = RESPONSE_BASIC % (
-    301,
-    'Moved Permanently',
-    '%s',
-    'Location: %s' + 2 * CRLF,
+    b'301',
+    b'Moved Permanently',
+    b'%s',
+    b'Location: %s' + 2 * CRLF,
 )
 
 # BAD_REQUEST % ( timestamp )
@@ -104,9 +107,9 @@ REDIRECT = RESPONSE_BASIC % (
 # Server: Dragonkeeper/0.8
 
 BAD_REQUEST = RESPONSE_BASIC % (
-    400,
-    'Bad Request',
-    '%s',
+    b'400',
+    b'Bad Request',
+    b'%s',
     2 * CRLF,
 )
 
@@ -120,17 +123,17 @@ BAD_REQUEST = RESPONSE_BASIC % (
 # %s
 
 NOT_FOUND = RESPONSE_BASIC % (
-    404,
-    'NOT FOUND',
-    '%s',
-    'Content-Type: text/plain' + CRLF + \
-    'Content-Length:%s' + 2 * CRLF + \
-    '%s',
+    b'404',
+    b'NOT FOUND',
+    b'%s',
+    b'Content-Type: text/plain' + CRLF +
+    b'Content-Length:%s' + 2 * CRLF +
+    b'%s',
 )
 
 # The template to create a html directory view
 DIR_VIEW = \
-"""
+    b"""
 <!doctype html>
 <html>
 <head>
@@ -181,18 +184,20 @@ DIR_VIEW = \
 </html>
 """
 
-ITEM_DIR = """<li class="directory"><a href="./%s/"><icon></icon>%s</a></li>"""
-ITEM_FILE = """<li class="file"><a href="./%s"><icon></icon>%s</a></li>"""
+
+ITEM_DIR = b"""<li class="directory"><a href="./%s/"><icon></icon>%s</a></li>"""
+ITEM_FILE = b"""<li class="file"><a href="./%s"><icon></icon>%s</a></li>"""
 TIMEOUT = 30
 
 
 def URI_to_system_path(path):
-    return path_join(*[unquote(part) for part in path.split('/')])
+    return path_join(*[unquote(part) for part in path.split(b'/')])
 
 
-def get_timestamp(path = None):
-    return strftime("%a, %d %b %Y %H:%M:%S GMT",
-                            gmtime(path and stat(path).st_mtime or None))
+def get_timestamp(path=None):
+    return str.encode(strftime('%a, %d %b %Y %H:%M:%S GMT',
+                               gmtime(path and stat(path).st_mtime or None)))
+
 
 def get_ts_short():
     t = time()
@@ -216,6 +221,7 @@ def timestamp_to_time(stamp):
 
 # Singleton class taken from
 # http://book.opensourceproject.org.cn/lamp/python/pythoncook2/opensource/0596007973/pythoncook2-chp-6-sect-15.html
+
 
 class Singleton(object):
     """ A Pythonic Singleton """

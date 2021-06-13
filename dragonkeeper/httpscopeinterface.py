@@ -39,33 +39,34 @@ See also http://dragonfly.opera.com/app/scope-interface for more details.
 """
 
 import re
-import httpconnection
+from . import httpconnection
 import os
 from time import time
-from common import CRLF, RESPONSE_BASIC, RESPONSE_OK_CONTENT
-from common import NOT_FOUND, BAD_REQUEST, get_timestamp, Singleton
+from .common import CRLF, RESPONSE_BASIC, RESPONSE_OK_CONTENT
+from .common import NOT_FOUND, BAD_REQUEST, get_timestamp, Singleton
 # from common import pretty_dragonfly_snapshot
-from utils import MessageMap, pretty_print_XML, pretty_print
-from stpwebsocket import STPWebSocket
-from websocket13 import TestWebSocket13, TestWebSocket13HighLoad
+from .utils import MessageMap, pretty_print_XML, pretty_print
+from .stpwebsocket import STPWebSocket
+from .websocket13 import TestWebSocket13, TestWebSocket13HighLoad
 
 # the two queues
 connections_waiting = []
 scope_messages = []
 command_times = {}
 
-SERVICE_LIST = """<services>%s</services>"""
-SERVICE_ITEM = """<service name="%s"/>"""
-XML_PRELUDE = """<?xml version="1.0"?>%s"""
+SERVICE_LIST = b"""<services>%s</services>"""
+SERVICE_ITEM = b"""<service name="%s"/>"""
+XML_PRELUDE = b"""<?xml version="1.0"?>%s"""
 MSG_TYPE_ERROR = 4
 
+
 class Scope(Singleton):
-    """Access layer for HTTPScopeInterface instances to the scope connection"""
+    b"""Access layer for HTTPScopeInterface instances to the scope connection"""
 
     version_map = {
         "stp-1": "STP/1",
         "stp-0": "STP/0",
-        }
+    }
 
     def __init__(self):
         self.send_command = self.empty_call
@@ -107,7 +108,7 @@ class Scope(Singleton):
             else:
                 http_connection.return_service_list(self._service_list)
         else:
-            print "Unsupported version in scope.return_service_list(conn)"
+            print("Unsupported version in scope.return_service_list(conn)")
 
     def set_STP_version(self, version):
         """to register the STP version.
@@ -116,7 +117,7 @@ class Scope(Singleton):
             self.version = "stp-1"
             self.send_command = self._connection.send_command_STP_1
         else:
-            print "This stp version is not jet supported"
+            print("This stp version is not jet supported")
 
     def get_STP_version(self):
         return self.version_map[self.version]
@@ -133,9 +134,11 @@ class Scope(Singleton):
             self._http_connection = None
         else:
             MessageMap(self._service_list, self._connection,
-                self._connect_callback, self._http_connection.context)
+                       self._connect_callback, self._http_connection.context)
+
 
 scope = Scope()
+
 
 class HTTPScopeInterface(httpconnection.HTTPConnection):
     """To expose a HTTP interface of the scope interface.
@@ -198,11 +201,11 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
     # %s
 
     RESPONSE_SERVICELIST = RESPONSE_OK_CONTENT % (
-        '%s',
-        'Cache-Control: no-cache' + CRLF,
-        'application/xml',
-        '%s',
-        '%s',
+        b'%s',
+        b'Cache-Control: no-cache' + CRLF,
+        b'application/xml',
+        b'%s',
+        b'%s',
     )
 
     # RESPONSE_OK_OK % ( timestamp )
@@ -216,11 +219,11 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
     # <ok/>
 
     RESPONSE_OK_OK = RESPONSE_OK_CONTENT % (
-        '%s',
-        'Cache-Control: no-cache' + CRLF,
-        'application/xml',
-        len("<ok/>"),
-        "<ok/>",
+        b'%s',
+        b'Cache-Control: no-cache' + CRLF,
+        b'application/xml',
+        bytes([len("<ok/>")]),
+        b"<ok/>",
     )
 
     # RESPONSE_TIMEOUT % ( timestamp )
@@ -234,11 +237,11 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
     # <timeout/>
 
     RESPONSE_TIMEOUT = RESPONSE_OK_CONTENT % (
-        '%s',
-        'Cache-Control: no-cache' + CRLF,
-        'application/xml',
-        len('<timeout/>'),
-        '<timeout/>',
+        b'%s',
+        b'Cache-Control: no-cache' + CRLF,
+        b'application/xml',
+        bytes([len('<timeout/>')]),
+        b'<timeout/>',
     )
 
     # SCOPE_MESSAGE_STP_0 % ( timestamp, service, message length, message )
@@ -253,12 +256,12 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
     # %s
 
     SCOPE_MESSAGE_STP_0 = RESPONSE_OK_CONTENT % (
-        '%s',
-        'Cache-Control: no-cache' + CRLF + \
-        'X-Scope-Message-Service: %s' + CRLF,
-        'application/xml',
-        '%s',
-        '%s',
+        b'%s',
+        b'Cache-Control: no-cache' + CRLF +
+        b'X-Scope-Message-Service: %s' + CRLF,
+        b'application/xml',
+        b'%s',
+        b'%s',
     )
 
     # SCOPE_MESSAGE_STP_1 % ( timestamp, service, command, status,
@@ -276,15 +279,15 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
     #
     # %s
     SCOPE_MESSAGE_STP_1 = RESPONSE_OK_CONTENT % (
-        '%s',
-        'Cache-Control: no-cache' + CRLF + \
-        'X-Scope-Message-Service: %s' + CRLF + \
-        'X-Scope-Message-Command: %s' + CRLF + \
-        'X-Scope-Message-Status: %s' + CRLF + \
-        'X-Scope-Message-Tag: %s' + CRLF,
-        'text/plain',
-        '%s',
-        '%s',
+        b'%s',
+        b'Cache-Control: no-cache' + CRLF +
+        b'X-Scope-Message-Service: %s' + CRLF +
+        b'X-Scope-Message-Command: %s' + CRLF +
+        b'X-Scope-Message-Status: %s' + CRLF +
+        b'X-Scope-Message-Tag: %s' + CRLF,
+        b'text/plain',
+        b'%s',
+        b'%s',
     )
 
     def __init__(self, conn, addr, context):
@@ -306,14 +309,14 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
     def services(self):
         """to get the service list"""
         if connections_waiting:
-            print ">>> failed, connections_waiting is not empty"
+            print(">>> failed, connections_waiting is not empty")
         scope.return_service_list(self)
         self.timeout = 0
 
     def return_service_list(self, serviceList):
         content = SERVICE_LIST % "".join(
             [SERVICE_ITEM % service.encode('utf-8')
-            for service in serviceList])
+             for service in serviceList])
         self.out_buffer += self.RESPONSE_SERVICELIST % (
             get_timestamp(),
             len(content),
@@ -333,7 +336,7 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
         """to enable a scope service"""
         service = self.arguments[0]
         if scope.services_enabled[service]:
-            print ">>> service is already enabled", service
+            print(">>> service is already enabled", service)
         else:
             scope.send_command("*enable %s" % service)
             scope.services_enabled[service] = True
@@ -371,7 +374,7 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
             self.timeout = 0
 
     def test_web_sock_13(self):
-        if self.headers.get("Upgrade") == "websocket":
+        if self.headers.get(b"Upgrade") == b"websocket":
             self.del_channel()
             self.timeout = 0
             TestWebSocket13(self.socket,
@@ -419,25 +422,25 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
             if self.is_timing:
                 command_times[args[2]] = (args[0], args[1], time() * 1000)
             scope.send_command({
-                    0: 1, # message type
-                    1: args[0],
-                    2: int(args[1]),
-                    3: 1,
-                    5: int(args[2]),
-                    8: self.raw_post_data,
-                })
+                0: 1,  # message type
+                1: args[0],
+                2: int(args[1]),
+                3: 1,
+                5: int(args[2]),
+                8: self.raw_post_data,
+            })
             is_ok = True
         else:
             service = self.arguments[0]
             if service in scope.services_enabled:
                 if not raw_data.startswith("<?xml") and \
-                     not raw_data.startswith("STP/1"):
+                        not raw_data.startswith("STP/1"):
                     raw_data = XML_PRELUDE % raw_data
                 msg = "%s %s" % (service, raw_data.decode('UTF-8'))
                 scope.send_command(msg)
                 is_ok = True
             else:
-                print "tried to send a command before %s was enabled" % service
+                print("tried to send a command before %s was enabled" % service)
         self.out_buffer += (is_ok and
                             self.RESPONSE_OK_OK or
                             BAD_REQUEST) % get_timestamp()
@@ -461,7 +464,7 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
         """save file"""
         raw_data = self.raw_post_data
         file_name = self.arguments[0]
-        print file_name
+        print(file_name)
         if not os.path.exists("screenshots"):
             os.mkdir("screenshots")
 
@@ -479,7 +482,8 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
         """ return a message to the client"""
         service, payload = msg
         if self.debug:
-            pretty_print_XML("\nsend to client: %s" % service, payload, self.debug_format)
+            pretty_print_XML("\nsend to client: %s" %
+                             service, payload, self.debug_format)
         self.out_buffer += self.SCOPE_MESSAGE_STP_0 % (
             get_timestamp(),
             service,
@@ -509,22 +513,22 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
             msg[8] = ' '
         if self.debug and (not self.debug_only_errors or msg[4] == MSG_TYPE_ERROR):
             pretty_print("send to client:", msg,
-                                self.debug_format, self.debug_format_payload, self.verbose_debug)
+                         self.debug_format, self.debug_format_payload, self.verbose_debug)
         if self.is_timing:
             tag = str(msg[5])
             if tag in command_times:
                 item = command_times.pop(tag)
-                print item[0],
-                print MessageMap.get_cmd_name(item[0], item[1]),
-                print time() * 1000 - item[2]
+                print(item[0],)
+                print(MessageMap.get_cmd_name(item[0], item[1]),)
+                print(time() * 1000 - item[2])
         self.out_buffer += self.SCOPE_MESSAGE_STP_1 % (
             get_timestamp(),
-            msg[1], # service
-            msg[2], # command
-            msg[4], # status
-            msg[5], # tag
+            msg[1],  # service
+            msg[2],  # command
+            msg[4],  # status
+            msg[5],  # tag
             len(msg[8]),
-            msg[8], # payload
+            msg[8],  # payload
         )
         self.timeout = 0
         if not sender == self:
@@ -534,7 +538,7 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
         if self in connections_waiting:
             connections_waiting.remove(self)
             if not self.command in ["get_message", "scope_message"]:
-                print ">>> failed, wrong connection type in queue"
+                print(">>> failed, wrong connection type in queue")
             self.out_buffer += self.RESPONSE_TIMEOUT % get_timestamp()
         else:
             self.out_buffer += NOT_FOUND % (get_timestamp(), 0, '')
@@ -544,11 +548,10 @@ class HTTPScopeInterface(httpconnection.HTTPConnection):
         if self.timeout:
             self.timeouthandler()
 
-
-
     # ============================================================
     # Implementations of the asyncore.dispatcher class methods
     # ============================================================
+
     def writable(self):
         if self.timeout and time() > self.timeout and not self.out_buffer:
             self.timeouthandler()

@@ -8,8 +8,8 @@ from os.path import isfile, isdir
 from os.path import exists as path_exists
 from os.path import join as path_join
 from mimetypes import types_map
-from common import *
-from common import __version__ as VERSION
+from .common import *
+from .common import __version__ as VERSION
 
 types_map[".manifest"] = "text/cache-manifest"
 types_map[".ico"] = "image/x-icon"
@@ -26,8 +26,8 @@ class HTTPConnection(asyncore.dispatcher):
         asyncore.dispatcher.__init__(self, sock=conn)
         self.addr = addr
         self.context = context
-        self.in_buffer = ""
-        self.out_buffer = ""
+        self.in_buffer = b""
+        self.out_buffer = b""
         self.content_length = 0
         self.check_input = self.read_headers
         self.query = ''
@@ -50,13 +50,14 @@ class HTTPConnection(asyncore.dispatcher):
             # if path == "/app/":
             #    path = "/app/stp-1/client-en.xml"
             self.REQUEST_URI = path
-            path = path.lstrip("/")
-            if "?" in path:
-                path, self.query = path.split('?', 1)
-            arguments = path.split("/")
-            command = arguments and arguments.pop(0) or ""
+            path = path.lstrip(b"/")
+            if b"?" in path:
+                path, self.query = path.split(b'?', 1)
+            arguments = path.split(b"/")
+            command = (arguments and arguments.pop(0) or b"").decode()
             command = command.replace('-', '_').replace('.', '_')
-            system_path = URI_to_system_path(path.rstrip("/")) or "."
+            system_path = URI_to_system_path(path.rstrip(b"/")) or "."
+            print('system path', system_path)
             self.method = method
             self.path = path
             self.command = command
@@ -74,7 +75,7 @@ class HTTPConnection(asyncore.dispatcher):
                     self.check_input = self.read_content
                     self.check_input()
             # GET
-            elif method == "GET":
+            elif method == b"GET":
                 if hasattr(self, command) and \
                         hasattr(getattr(self, command), '__call__'):
                     getattr(self, command)()
@@ -100,10 +101,10 @@ class HTTPConnection(asyncore.dispatcher):
                     self.check_input()
             # Not implemented method
             else:
-                content = "The server cannot handle: %s" % method
+                content = b"The server cannot handle: %s" % method
                 self.out_buffer += NOT_FOUND % (
                     get_timestamp(),
-                    len(content),
+                    str.encode(str(len(content))),
                     content)
                 self.timeout = 0
 
@@ -253,10 +254,10 @@ class HTTPConnection(asyncore.dispatcher):
                 self.check_input()
 
     def serve(self, path, system_path):
-        if path_exists(system_path) or path == "":
+        if path_exists(system_path) or path == b"":
             if isfile(system_path):
                 self.serve_file(path, system_path)
-            elif isdir(system_path) or path == "":
+            elif isdir(system_path) or path == b"":
                 self.serve_dir(path, system_path)
         else:
             content = "The sever couldn't find %s" % system_path
@@ -267,14 +268,17 @@ class HTTPConnection(asyncore.dispatcher):
             self.timeout = 0
 
     def serve_file(self, path, system_path):
-        if "If-Modified-Since" in self.headers and \
-           timestamp_to_time(self.headers["If-Modified-Since"]) >= \
+        if b"If-Modified-Since" in self.headers and \
+           timestamp_to_time(self.headers[b"If-Modified-Since"]) >= \
            int(stat(system_path).st_mtime):
             self.out_buffer += NOT_MODIFIED % get_timestamp()
             self.timeout = 0
         else:
-            ending = "." in path and path[path.rfind("."):] or "no-ending"
-            mime = ending in types_map and types_map[ending] or 'text/plain'
+            print('path', path)
+            ending = (b"." in path and path[path.rfind(
+                b"."):] or b"no-ending").decode()
+            mime = str.encode(
+                ending in types_map and types_map[ending] or 'text/plain')
             try:
                 response_template = RESPONSE_OK_CONTENT
                 if isfile(system_path + '.gz'):
@@ -285,11 +289,11 @@ class HTTPConnection(asyncore.dispatcher):
                 f.close()
                 self.out_buffer += response_template % (
                     get_timestamp(),
-                    'Last-Modified: %s%s' % (
+                    b'Last-Modified: %s%s' % (
                         get_timestamp(system_path),
                         CRLF),
                     mime,
-                    len(content),
+                    str.encode(str(len(content))),
                     content)
                 self.timeout = 0
             except:
@@ -301,10 +305,11 @@ class HTTPConnection(asyncore.dispatcher):
                 self.timeout = 0
 
     def serve_dir(self, path, system_path):
-        if path and not path.endswith('/'):
-            self.out_buffer += REDIRECT % (get_timestamp(), path + '/')
+        if path and not path.endswith(b'/'):
+            self.out_buffer += REDIRECT % (get_timestamp(), path + b'/')
             self.timeout = 0
         else:
+            print('system_path', system_path)
             try:
                 items_dir = [item for item in listdir(system_path)
                              if isdir(path_join(system_path, item))]
@@ -314,18 +319,24 @@ class HTTPConnection(asyncore.dispatcher):
                 items_file.sort()
                 if path:
                     items_dir.insert(0, '..')
-                markup = [ITEM_DIR % (quote(item), item)
+                print('>>> 0', items_dir)
+                markup = [ITEM_DIR % (str.encode(quote(item)), str.encode(item))
                           for item in items_dir]
-                markup.extend([ITEM_FILE % (quote(item), item)
+                print('>>> 1')
+                markup.extend([ITEM_FILE % (str.encode(quote(item)), str.encode(item))
                                for item in items_file])
-                content = DIR_VIEW % ("".join(markup))
-            except Exception, msg:
-                content = DIR_VIEW % """<li style="color:#f30">%s</li>""" % msg
+                print('>>> 2')
+                content = DIR_VIEW % (b"".join(markup))
+            except Exception as msg:
+                print('msg >>>', msg)
+                print("OS error: {0}".format(msg))
+                content = DIR_VIEW % str.encode(
+                    """<li style="color:#f30">%s</li>""" % (msg))
             self.out_buffer += RESPONSE_OK_CONTENT % (
                 get_timestamp(),
-                '',
-                "text/html",
-                len(content),
+                b'',
+                b"text/html",
+                str.encode(str(len(content))),
                 content)
             self.timeout = 0
 
@@ -397,13 +408,16 @@ class HTTPConnection(asyncore.dispatcher):
     # ============================================================
 
     def handle_read(self):
-        self.in_buffer += self.recv(BUFFERSIZE)
+        b = self.recv(BUFFERSIZE)
+        print('read', b[0:20])
+        self.in_buffer += b
         self.check_input()
 
     def writable(self):
         return bool(self.out_buffer)
 
     def handle_write(self):
+        print('write', self.out_buffer[0:20])
         sent = self.send(self.out_buffer)
         self.out_buffer = self.out_buffer[sent:]
 

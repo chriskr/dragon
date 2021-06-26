@@ -1,0 +1,7 @@
+*.pyc
+*~
+env
+dist
+build
+dragon.egg-info
+.vscode/

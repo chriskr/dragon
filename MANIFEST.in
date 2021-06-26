@@ -1,0 +1,7 @@
+include README
+include CHANGELOG
+include MANIFEST.in
+include LICENSE
+include dragon/favicon.ico
+recursive-include dragon *.py
+prune dragon/*.pyc

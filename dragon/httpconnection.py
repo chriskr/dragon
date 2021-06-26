@@ -1,4 +1,5 @@
 import asyncore
+from dragon.websocket13 import TestWebSocket13
 import sys
 import shlex
 import json
@@ -57,7 +58,6 @@ class HTTPConnection(asyncore.dispatcher):
             command = (arguments and arguments.pop(0) or b"").decode()
             command = command.replace('-', '_').replace('.', '_')
             system_path = URI_to_system_path(path.rstrip(b"/")) or "."
-            print('system path', system_path)
             self.method = method
             self.path = path
             self.command = command
@@ -108,131 +108,6 @@ class HTTPConnection(asyncore.dispatcher):
                     content)
                 self.timeout = 0
 
-    def check_is_cgi(self, system_path, handler=".cgi"):
-        # system path of the cgi script
-        self.cgi_script = ""
-        self.SCRIPT_NAME = ""
-        self.PATH_INFO = ""
-        if handler in system_path:
-            script_path = system_path[0:system_path.find(
-                handler) + len(handler)]
-            if isfile(script_path):
-                self.cgi_script = script_path
-                pos = self.REQUEST_URI.find(handler) + len(handler)
-                self.SCRIPT_NAME = self.REQUEST_URI[0:pos]
-                path_info = self.REQUEST_URI[pos:]
-                if "?" in path_info:
-                    path_info = path_info[0:path_info.find("?")]
-                self.PATH_INFO = path_info
-        return bool(self.cgi_script)
-
-    def handle_cgi(self):
-        import subprocess
-        is_failed = False
-        remote_addr, remote_port = self.socket.getpeername()
-        cwd = os.getcwd()
-        environ = {
-            # os
-            "COMSPEC": os.environ.get("COMSPEC", ""),
-            "PATH": os.environ["PATH"],
-            "PATHEXT": os.environ.get("PATHEXT", ""),
-            "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
-            "WINDIR": os.environ.get("WINDIR", ""),
-            # server
-            "DOCUMENT_ROOT": os.getcwd().replace(os.path.sep, "/"),
-            "GATEWAY_INTERFACE": "CGI/1.1",
-            "QUERY_STRING": self.query,
-            "REMOTE_ADDR": remote_addr,
-            "REMOTE_PORT": str(remote_port),
-            "REQUEST_METHOD": self.method,
-            "REQUEST_URI": self.REQUEST_URI,
-            "SCRIPT_FILENAME": cwd.replace(os.path.sep, "/") + self.SCRIPT_NAME,
-            "SCRIPT_NAME": self.SCRIPT_NAME,
-            "SERVER_ADDR": self.context.SERVER_ADDR,
-            "SERVER_ADMIN": "",
-            "SERVER_NAME": self.context.SERVER_NAME,
-            "SERVER_PORT": str(self.context.SERVER_PORT),
-            "SERVER_PROTOCOL": " HTTP/1.1",
-            "SERVER_SIGNATURE": "",
-            "SERVER_SOFTWARE": "dragonkeeper/%s" % VERSION,
-        }
-        if self.PATH_INFO:
-            environ["PATH_INFO"] = self.PATH_INFO
-            environ["PATH_TRANSLATED"] = \
-                cwd + self.PATH_INFO.replace("/", os.path.sep)
-        if "Content-Length" in self.headers:
-            environ["CONTENT_LENGTH"] = self.headers["Content-Length"]
-        if "Content-Type" in self.headers:
-            environ["CONTENT_TYPE"] = self.headers["Content-Type"]
-        for header in self.headers:
-            key = "HTTP_%s" % header.upper().replace('-', '_')
-            environ[key] = self.headers[header]
-        script_abs_path = os.path.abspath(self.cgi_script)
-        response_code = 200
-        response_token = 'OK'
-        stdoutdata = ""
-        stderrdata = ""
-        headers = {}
-        content = ""
-        try:
-            file = open(script_abs_path, 'rb')
-            first_line = file.readline()
-            file.close()
-        except:
-            is_failed = True
-        if not is_failed:
-            if first_line.startswith("#!"):
-                first_line = first_line[2:].strip()
-            else:
-                is_failed = True
-        if not is_failed:
-            command = shlex.split(first_line)
-            command.append(script_abs_path)
-            p = subprocess.Popen(
-                command,
-                stdout=subprocess.PIPE,
-                stdin=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=environ,
-                cwd=os.path.split(script_abs_path)[0]
-            )
-            input = None
-            if self.method == "POST":
-                input = self.raw_post_data
-            stdoutdata, stderrdata = p.communicate(input)
-            if stderrdata:
-                content = "\n". join([
-                    "Error occured in the subprocess",
-                    "-------------------------------",
-                    "",
-                    stderrdata
-                ])
-                headers['Content-Type'] = 'text/plain'
-            elif stdoutdata:
-                raw_parsed_headers = parse_headers(CRLF + stdoutdata)
-                if raw_parsed_headers:
-                    (headers_raw, first_line,
-                     headers, content) = raw_parsed_headers
-                    if 'Status' in headers:
-                        response_code, response_token = \
-                            headers.pop('Status').split(' ', 1)
-                else:
-                    # assume its html
-                    content = stdoutdata
-                    headers['Content-Type'] = 'text/html'
-
-        headers['Content-Length'] = len(content)
-        self.out_buffer += RESPONSE_BASIC % (
-            response_code,
-            response_token,
-            get_timestamp(),
-            "".join(
-                ["%s: %s\r\n" % (key, headers[key]) for key in headers] +
-                [CRLF, content]
-            )
-        )
-        self.timeout = 0
-
     def read_content(self):
         if len(self.in_buffer) >= self.content_length:
             self.raw_post_data = self.in_buffer[0:self.content_length]
@@ -269,12 +144,11 @@ class HTTPConnection(asyncore.dispatcher):
 
     def serve_file(self, path, system_path):
         if b"If-Modified-Since" in self.headers and \
-           timestamp_to_time(self.headers[b"If-Modified-Since"]) >= \
+           timestamp_to_time(self.headers[b"If-Modified-Since"].decode()) >= \
            int(stat(system_path).st_mtime):
             self.out_buffer += NOT_MODIFIED % get_timestamp()
             self.timeout = 0
         else:
-            print('path', path)
             ending = (b"." in path and path[path.rfind(
                 b"."):] or b"no-ending").decode()
             mime = str.encode(
@@ -309,7 +183,6 @@ class HTTPConnection(asyncore.dispatcher):
             self.out_buffer += REDIRECT % (get_timestamp(), path + b'/')
             self.timeout = 0
         else:
-            print('system_path', system_path)
             try:
                 items_dir = [item for item in listdir(system_path)
                              if isdir(path_join(system_path, item))]
@@ -319,16 +192,12 @@ class HTTPConnection(asyncore.dispatcher):
                 items_file.sort()
                 if path:
                     items_dir.insert(0, '..')
-                print('>>> 0', items_dir)
                 markup = [ITEM_DIR % (str.encode(quote(item)), str.encode(item))
                           for item in items_dir]
-                print('>>> 1')
                 markup.extend([ITEM_FILE % (str.encode(quote(item)), str.encode(item))
                                for item in items_file])
-                print('>>> 2')
                 content = DIR_VIEW % (b"".join(markup))
             except Exception as msg:
-                print('msg >>>', msg)
                 print("OS error: {0}".format(msg))
                 content = DIR_VIEW % str.encode(
                     """<li style="color:#f30">%s</li>""" % (msg))
@@ -340,63 +209,17 @@ class HTTPConnection(asyncore.dispatcher):
                 content)
             self.timeout = 0
 
-    def proxy(self):
-        import urllib
-        try:
-            response = urllib.urlopen(self.raw_post_data)
-            content = response.read()
-            self.out_buffer += RESPONSE_OK_CONTENT % (
-                get_timestamp(),
-                '',
-                "text/html",
-                len(content),
-                content)
-        except:
-            content = "The server cannot handle: %s" % method
-            self.out_buffer += NOT_FOUND % (
-                get_timestamp(),
-                len(content),
-                content)
+    def test_web_sock_13(self):
+        if self.headers.get(b"Upgrade") == b"websocket":
+            self.del_channel()
             self.timeout = 0
-        self.timeout = 0
-
-    def base64_2png(self):
-        import json
-        import upnpsimpledevice
-        resp_msg = None
-        try:
-            """
-            message format
-            {
-                directory: <relative URL>,
-                data: <base64 string>
-            }
-            """
-            msg = json.loads(self.raw_post_data)
-            file_name = "%s.png" % upnpsimpledevice.get_uuid()
-            sys_path = URI_to_system_path(msg.get("directory"))
-            if not path_exists(sys_path):
-                os.mkdir(sys_path)
-            path = path_join(sys_path, file_name)
-            fh = open(path, "wb")
-            fh.write(msg.get("data").decode('base64'))
-            fh.close()
-            resp_msg = {
-                "status": "OK",
-                "file_name": file_name
-            }
-        except:
-            resp_msg = {
-                "status": "Error"
-            }
-        content = json.dumps(resp_msg)
-        self.out_buffer += RESPONSE_OK_CONTENT % (
-            get_timestamp(),
-            "",
-            "text/plain",
-            len(content),
-            content)
-        self.timeout = 0
+            TestWebSocket13(self.socket,
+                            self.headers,
+                            self.in_buffer,
+                            self.path)
+        else:
+            self.out_buffer += BAD_REQUEST % get_timestamp()
+            self.timeout = 0
 
     # ============================================================
     #
@@ -408,16 +231,13 @@ class HTTPConnection(asyncore.dispatcher):
     # ============================================================
 
     def handle_read(self):
-        b = self.recv(BUFFERSIZE)
-        print('read', b[0:20])
-        self.in_buffer += b
+        self.in_buffer += self.recv(BUFFERSIZE)
         self.check_input()
 
     def writable(self):
         return bool(self.out_buffer)
 
     def handle_write(self):
-        print('write', self.out_buffer[0:20])
         sent = self.send(self.out_buffer)
         self.out_buffer = self.out_buffer[sent:]
 

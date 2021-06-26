@@ -3,5 +3,5 @@
 env
 dist
 build
-dragonkeeper.egg-info
+dragon.egg-info
 .vscode/

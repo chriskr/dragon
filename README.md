@@ -23,11 +23,11 @@ Note: Dragonkeeper doesn't have to be installed, but this is preferred.
 
 If installed:
 
-    % dragonkeeper
+    % dragon
 
 if not installed:
 
-    % python /path/to/dragonkeeper
+    % python /path/to/dragon
 
 Exit: Control-C
 
@@ -37,15 +37,15 @@ Basic workflow when using Dragonkeeper is as follows:
 
 - Get the Opera Dragonfly source from <https://github.com/operasoftware/dragonfly>
 
-- Open a terminal, go to the `src` directory in Dragonfly's directory and run dragonkeeper:
+- Open a terminal, go to the `src` directory in Dragonfly's directory and run dragon:
 
         % cd path/to/dragonfly/src
-        % dragonkeeper
+        % dragon
 
   This should result in:
 
         server on: http://localhost:8002/
-        
+
 - Open <http://localhost:8002/client-en.xml> in Opera. There
   should be a message saying "Waiting for host connection on port 0".
 
@@ -69,9 +69,9 @@ Dragonfly.
 
 Settings: an optional file `CONFIG` overrides the defaults.
 The options file is a standard .ini file, with a single section called
-"dragonkeeper":
+"dragon":
 
-    [dragonkeeper]
+    [dragon]
     host:
     root: .
     server_port: 8002
@@ -80,6 +80,7 @@ The options file is a standard .ini file, with a single section called
     format: False
 
 ### Options
+
 ```
   -h, --help            show this help message and exit
   -c CONFIG_PATH, --config=CONFIG_PATH
@@ -94,7 +95,7 @@ The options file is a standard .ini file, with a single section called
   -s SERVER_PORT, --server-port=SERVER_PORT
                         server port; default 8002
   --host=HOST           host; default localhost
-  -i, --make-ini        Print a default dragonkeeper.ini and exit
+  -i, --make-ini        Print a default dragon.ini and exit
   --force-stp-0         force stp 0 protocol
   --print-command-map   print the command map
   --message-filter=MESSAGE_FILTER
@@ -112,7 +113,6 @@ The options file is a standard .ini file, with a single section called
   --cgi                 enable cgi support
 ```
 
-
 More comments in the source files.
 
 ## Changelog
@@ -129,8 +129,6 @@ Dragonkeeper is maintained by the Opera Dragonfly team. The authors are
 
 The Opera Dragonfly web site is at http://dragonfly.opera.com
 
-
 ## License
 
 See the `LICENSE` file in the top distribution directory.
-

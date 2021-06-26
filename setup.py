@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from dragonkeeper.common import __version__ as VERSION
+from dragon.common import __version__ as VERSION
 
 try:
     from setuptools import setup, find_packages
@@ -8,7 +8,7 @@ try:
         packages=find_packages(),
         entry_points={
             'console_scripts': [
-                'dragonkeeper = dragonkeeper.dragonkeeper:main_func'
+                'dragon = dragon.dragon:main_func'
             ],
         },
     )
@@ -17,20 +17,20 @@ except ImportError:
     from distutils.core import setup
     addl_args = dict(
         packages=[
-            'dragonkeeper',
+            'dragon',
         ],
     )
 
 setup(
-    name='dragonkeeper',
+    name='dragon',
     version=VERSION.decode(),
-    url='http://bitbucket.org/scope/dragonkeeper/',
+    url='http://bitbucket.org/scope/dragon/',
     author='Christian Krebs, Rune Halvorsen, Jan Borsodi',
     author_email='chrisk@opera.com, runeh@opera.com, jborsodi@opera.com',
-    data_files=[('dragonkeeper', ['dragonkeeper/favicon.ico']),
-                ('dragonkeeper', ['dragonkeeper/device-favicon.png',
-                                  'dragonkeeper/folder.png',
-                                  'dragonkeeper/file.png'])],
+    data_files=[('dragon', ['dragon/favicon.ico']),
+                ('dragon', ['dragon/device-favicon.png',
+                            'dragon/folder.png',
+                            'dragon/file.png'])],
     description='An HTTP proxy for Opera Dragonfly development',
     long_description=open("README.md").read(),
     **addl_args

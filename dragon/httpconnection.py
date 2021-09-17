@@ -91,10 +91,10 @@ class HTTPConnection(asyncore.dispatcher):
                     elif path_exists(path_join(SOURCE_ROOT, system_path)):
                         self.serve(path, path_join(SOURCE_ROOT, system_path))
                     else:
-                        content = "The server cannot handle: %s" % path
+                        content = b"The server cannot handle: %s" % path
                         self.out_buffer += NOT_FOUND % (
                             get_timestamp(),
-                            len(content),
+                            str.encode(str(len(content))),
                             content)
                         self.timeout = 0
                 if self.in_buffer:
